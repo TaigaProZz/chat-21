@@ -1,0 +1,51 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+build/
+.idea/
+.vscode/
+*.iml
+
+firebase.json
+flutterfire.json
+
+
+# Android
+android/.gradle/
+android/app/debug/
+android/app/profile/
+android/app/release/
+*.jks
+*.keystore
+
+# iOS/macOS
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+macos/Flutter/ephemeral/
+macos/Pods/
+
+# Windows
+windows/flutter/ephemeral/
+windows/.vs/
+windows/CMakeFiles/
+windows/build/
+windows/x64/
+windows/Debug/
+windows/Release/
+*.exe
+*.pdb
+
+# Web
+web/.dart_tool/
+
+# Others
+pubspec.lock
+*.log
+*.DS_Store
+*.swp
