@@ -3,6 +3,7 @@ import 'package:chat_21/pages/conversation_page.dart';
 import 'package:chat_21/pages/home_page.dart';
 import 'package:chat_21/pages/login_page.dart';
 import 'package:chat_21/providers/theme_provider.dart';
+import 'package:chat_21/theme/theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:flutter/material.dart';
@@ -28,17 +29,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Chat 21',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: lightMode,
+      darkTheme: darkMode,
       themeMode: themeProvider.themeMode,
       routes: {
         '/conversation': (context) => const ConversationPage(),

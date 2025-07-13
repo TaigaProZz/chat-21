@@ -1,23 +1,47 @@
+import 'package:chat_21/models/user.dart';
 import 'package:flutter/material.dart';
 
 // Ton widget Stateful pour afficher un message reçu
 class ReceivedMessageWidget extends StatelessWidget {
-  const ReceivedMessageWidget({super.key, required this.message});
+  const ReceivedMessageWidget({super.key, required this.message, required this.targetUser});
 
   final String message;
 
+  final User? targetUser;
+
   @override
   Widget build(BuildContext context) {
-    final maxWidth = MediaQuery.of(context).size.width * 0.2;
-    
-    return Container(
-      padding: const EdgeInsets.all(8.0),
-      margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(12.0),
-      ),
-      child: Text(message, style: const TextStyle(fontSize: 16.0)),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 8.0, right: 4.0, top: 8.0),
+          child: ClipOval(
+            child: Image.network(
+              height: 40.0,
+              width: 40.0,
+              targetUser?.avatarUrl ?? 'https://via.placeholder.com/40',
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.broken_image),
+            )
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.all(8.0),
+          margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.secondary,
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          child: Text(
+            message,
+            style: TextStyle(
+              fontSize: 16.0,
+              color: Theme.of(context).colorScheme.onSecondary,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
