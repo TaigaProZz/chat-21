@@ -36,12 +36,12 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   provider: ^6.1.5
-  firebase_core: ^2.31.0
-  firebase_auth: ^4.17.4
-  cloud_firestore: ^4.17.4
+  firebase_core: ^3.15.1
+  firebase_auth: ^5.6.2
+  cloud_firestore: ^5.6.11
 
-  flutter_webrtc: ^1.1.0
-  web_socket_channel: ^2.4.0
+  flutter_webrtc: ^0.14.2
+  web_socket_channel: ^3.0.3
 
 dev_dependencies:
   flutter_test:
@@ -52,7 +52,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
