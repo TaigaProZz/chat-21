@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Message {
+  final String? id; 
   final String content;
   final String senderId;
   final String receiverId;
@@ -9,6 +10,7 @@ class Message {
   final bool isRead;
 
   Message({
+    this.id,
     required this.content,
     required this.senderId,
     required this.receiverId,
@@ -17,8 +19,9 @@ class Message {
     this.isRead = false,
   });
 
-  factory Message.fromJson(Map<String, dynamic> json) {
+  factory Message.fromJson(Map<String, dynamic> json, [String? docId]) {
     return Message(
+      id: docId,
       content: json['content'] as String,
       senderId: json['sender_id'] as String,
       receiverId: json['receiver_id'] as String,

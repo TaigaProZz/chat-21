@@ -6,6 +6,8 @@ import 'package:chat_21/widgets/sent_message_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+
+
 class ConversationPage extends StatefulWidget {
   const ConversationPage({super.key});
 
@@ -14,10 +16,9 @@ class ConversationPage extends StatefulWidget {
 }
 
 class _ConversationPageState extends State<ConversationPage> {
-  final UserService _userService = UserService();
-  List<String> authorizedUsers = [];
   List conversation = [];
   List messages = [];
+  List<String> authorizedUsers = [];
 
   final currentUser = UserService().currentUser;
   User? currentUserConverted;
@@ -34,42 +35,26 @@ class _ConversationPageState extends State<ConversationPage> {
   @override
   void initState() {
     super.initState();
-
-    _userService.fetchAuthorizedUsersUid().then((uids) {
-      setState(() {
-        authorizedUsers = uids;
-      });
-
-      if (uids.contains(currentUser?.uid)) {
-        fetchTargetUser();
-        fetchCurrentUserFromFirestore();
-        fetchConversation();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('You are not authorized to view this conversation.'),
-          ),
-        );
-      }
-    });
+    getAuthorizedUsers().then(
+      (_) async {
+        await fetchTargetUser();
+        await fetchCurrentUserFromFirestore();
+        await fetchConversation();
+      },
+    );
   }
 
   Future<void> fetchTargetUser() async {
     if (currentUser != null && authorizedUsers.isNotEmpty) {
-
       final fetchedTargetUser = await UserService().fetchTargetUser(
         currentUserUid: currentUser!.uid,
         authorizedUserUids: authorizedUsers,
       );
 
-      if (fetchedTargetUser != null) {
+      if (fetchedTargetUser != null && mounted) {
         setState(() {
           targetUser = fetchedTargetUser;
         });
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Target user not found.')));
       }
     }
   }
@@ -81,14 +66,10 @@ class _ConversationPageState extends State<ConversationPage> {
         authorizedUserUids: authorizedUsers,
       );
 
-      if (fetchedUser != null) {
+      if (fetchedUser != null && mounted) {
         setState(() {
           currentUserConverted = fetchedUser;
         });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Current user not found.')),
-        );
       }
     }
   }
@@ -118,14 +99,10 @@ class _ConversationPageState extends State<ConversationPage> {
         .collection('conversation')
         .get();
 
-    if (snapshot.docs.isNotEmpty) {
+    if (snapshot.docs.isNotEmpty && mounted) {
       setState(() {
         conversation = snapshot.docs.map((doc) => doc.id).toList();
       });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Aucune conversation trouvée.")),
-      );
     }
   }
 
@@ -137,18 +114,65 @@ class _ConversationPageState extends State<ConversationPage> {
         .orderBy('timestamp', descending: true)
         .limit(20)
         .snapshots()
-        .map((snapshot) =>
-          snapshot.docs.map((doc) => Message.fromJson(doc.data())).toList(),
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => Message.fromJson(doc.data(), doc.id))
+              .toList(),
         );
+  }
+
+  Future<void> getAuthorizedUsers() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('authorized_users')
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      authorizedUsers = snapshot.docs.map((doc) => doc.id).toList();
+    }
+  }
+
+  Future<void> markMessagesAsRead(List<Message> messages) async {
+    final unreadMessages = messages
+        .where((m) => !m.isRead && m.receiverId == currentUser?.uid)
+        .toList();
+
+    if (unreadMessages.isEmpty) return;
+
+    final batch = FirebaseFirestore.instance.batch();
+
+    for (var message in unreadMessages) {
+      if (message.id != null) {
+        final docRef = FirebaseFirestore.instance
+            .collection('messages')
+            .doc(message.id);
+        batch.update(docRef, {'is_read': true});
+      }
+    }
+
+    await batch.commit();
   }
   
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Conversation with ${targetUser?.displayName ?? 'Unknown'}',
-        ),
+      title: Row(
+        children: [
+          Padding(padding: const EdgeInsets.only(right: 8.0),
+            child: ClipOval(
+              child: Image.network(
+                targetUser?.avatarUrl ?? 'https://via.placeholder.com/40',
+                height: 40,
+                width: 40,
+                errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.broken_image),
+                  fit: BoxFit.cover
+              ),
+            )
+          ),
+          Text(targetUser?.bestName ?? 'Nom indisponible', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+      ])
+        
       ),
       body: conversation.isEmpty
         ? const Center(child: CircularProgressIndicator())
@@ -168,31 +192,11 @@ class _ConversationPageState extends State<ConversationPage> {
 
                     final messages = snapshot.data!;
 
-                    for (final message in messages) {
-                        final isUnread =
-                            !message.isRead &&
-                            message.receiverId == currentUser?.uid;
-
-                        if (isUnread) {
-                          FirebaseFirestore.instance
-                              .collection('messages')
-                              .where(
-                                'conversation_id',
-                                isEqualTo: conversation.first,
-                              )
-                              .where('timestamp', isEqualTo: message.timestamp)
-                              .limit(1)
-                              .get()
-                              .then((snapshot) {
-                                if (snapshot.docs.isNotEmpty) {
-                                  FirebaseFirestore.instance
-                                      .collection('messages')
-                                      .doc(snapshot.docs.first.id)
-                                      .update({'is_read': true});
-                                }
-                              });
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                       if (mounted) {
+                          markMessagesAsRead(snapshot.data!);
                         }
-                      }
+                    });
 
                     return ListView.builder(
                       padding: const EdgeInsets.all(8.0),
@@ -250,8 +254,4 @@ class _ConversationPageState extends State<ConversationPage> {
           ),
     );
   }
-}
-
-Future<QuerySnapshot<Map<String, dynamic>>> getAuthorizedUsers() async {
-  return await FirebaseFirestore.instance.collection('authorized_users').get();
 }

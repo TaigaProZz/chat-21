@@ -40,6 +40,9 @@ dependencies:
   firebase_auth: ^4.17.4
   cloud_firestore: ^4.17.4
 
+  flutter_webrtc: ^1.1.0
+  web_socket_channel: ^2.4.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

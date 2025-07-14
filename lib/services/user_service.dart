@@ -15,14 +15,6 @@ class UserService {
     return userCredential.user;
   }
 
-  Future<List<String>> fetchAuthorizedUsersUid() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('authorized_users')
-        .get();
-
-    return snapshot.docs.map((doc) => doc['uid'] as String).toList();
-  }
-
   Future<app_user.User?> fetchTargetUser({
     required String currentUserUid,
     required List<String> authorizedUserUids,
