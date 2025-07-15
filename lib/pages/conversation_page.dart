@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:chat_21/models/message.dart';
 import 'package:chat_21/models/user.dart' as user_model;
 import 'package:chat_21/services/user_service.dart';
+import 'package:chat_21/services/call_dialog_service.dart';
 import 'package:chat_21/widgets/call_overlay.dart';
 import 'package:chat_21/widgets/received_message_widget.dart';
 import 'package:chat_21/widgets/sent_message_widget.dart';
@@ -12,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 
 enum CallState { idle, calling, ringing, connected, ended, error }
 
@@ -23,6 +25,8 @@ class ConversationPage extends StatefulWidget {
 }
 
 class _ConversationPageState extends State<ConversationPage> {
+  late Stream<List<Message>> _messageStream;
+
   List conversation = [];
   List messages = [];
   List<String> authorizedUsers = [];
@@ -74,6 +78,9 @@ class _ConversationPageState extends State<ConversationPage> {
       await fetchTargetUser();
       await fetchCurrentUserFromFirestore();
       await fetchConversation();
+       if (conversation.isNotEmpty) {
+        _messageStream = getMessagesStream(conversation.first);
+      }
       await _connectToWebSocket();
     });
   }
@@ -160,6 +167,7 @@ class _ConversationPageState extends State<ConversationPage> {
           break;
         case 'hangup':
           _onCallEnded();
+          CallDialogService.closeDialogIfShown();
           break;
         default:
           print('Message inconnu reçu: $data');
@@ -268,8 +276,6 @@ class _ConversationPageState extends State<ConversationPage> {
   }
 
   Future<void> _onOffer(String sdp, String fromUid) async {
-    print('Appel entrant de $fromUid');
-
     // Rejeter si déjà en appel
     if (_callState != CallState.idle) {
       _sendMessage({'type': 'reject', 'from': _myUid, 'to': fromUid});
@@ -279,15 +285,20 @@ class _ConversationPageState extends State<ConversationPage> {
     _setState(CallState.ringing);
     _callerUid = fromUid;
 
-    if (mounted ) {
-      final accept = await _showIncomingCallDialog(fromUid);
+    // Afficher la boîte de dialogue d'appel entrant
+    if (mounted) {
+      final accept = await CallDialogService.showIncomingCallDialog(
+        context,
+        targetUser,
+        fromUid,
+      );
 
-       if (accept != true) {
+      if (accept != true) {
         _sendMessage({'type': 'reject', 'from': _myUid, 'to': fromUid});
         _setState(CallState.idle);
         return;
       }
-    };
+    }
 
     try {
       await _createPeerConnection();
@@ -304,36 +315,7 @@ class _ConversationPageState extends State<ConversationPage> {
       _setState(CallState.error);
     }
   }
-
-  Future<bool?> _showIncomingCallDialog(String fromUid) {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text("Appel entrant"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.phone_in_talk, size: 48, color: Colors.green),
-            const SizedBox(height: 16),
-            Text(
-              "${targetUser?.bestName ?? 'Utilisateur inconnu'} vous appelle",
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Refuser", style: TextStyle(color: Colors.red)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Accepter"),
-          ),
-        ],
-      ),
-    );
-  }
+  
 
   Future<void> _onAnswer(String sdp) async {
     try {
@@ -359,8 +341,11 @@ class _ConversationPageState extends State<ConversationPage> {
     }
   }
 
-  void _onCallRejected() {
+ void _onCallRejected() {
     if (!mounted) return;
+
+    CallDialogService.closeDialogIfShown();
+
     _setState(CallState.ended);
     _showSnackBar('Appel refusé');
   }
@@ -368,6 +353,9 @@ class _ConversationPageState extends State<ConversationPage> {
   void _onCallEnded() {
     if (!mounted) return;
     if (currentUser == null) return;
+
+    CallDialogService.closeDialogIfShown();
+
     _setState(CallState.ended);
     _showSnackBar('Appel terminé');
   }
@@ -455,6 +443,7 @@ class _ConversationPageState extends State<ConversationPage> {
   }
 
   Widget _buildCallOverlay() {
+ 
     if (_callState == CallState.idle) return const SizedBox.shrink();
 
     return CallOverlay(
@@ -466,14 +455,16 @@ class _ConversationPageState extends State<ConversationPage> {
       showMute: _callState == CallState.connected,
       showSpeaker: _callState == CallState.connected,
       showHangUp:
-          _callState != CallState.ended && _callState != CallState.error,
+        _callState != CallState.ended && _callState != CallState.error,
       onMute: _toggleMute,
       onSpeaker: _toggleSpeaker,
       onHangUp: _hangUp,
       callDuration: _callState == CallState.connected
-          ? _formatDuration(_callDuration)
-          : null,
+        ? _formatDuration(_callDuration)
+        : null,
     );
+
+
   }
   String _getCallStateText() {
     switch (_callState) {
@@ -491,8 +482,6 @@ class _ConversationPageState extends State<ConversationPage> {
         return '';
     }
   }
-
-  // --- Le reste de votre code (messages, etc) reste identique ---
 
   Future<void> fetchTargetUser() async {
     if (currentUser != null && authorizedUsers.isNotEmpty) {
@@ -651,7 +640,7 @@ class _ConversationPageState extends State<ConversationPage> {
                     children: [
                       Expanded(
                         child: StreamBuilder<List<Message>>(
-                          stream: getMessagesStream(conversation.first),
+                          stream: _messageStream,
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
